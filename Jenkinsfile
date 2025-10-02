@@ -6,10 +6,16 @@ pipeline {
     }
 
     stages {
+        stage('Debug Info') {
+            steps {
+                bat 'echo "Java Version:" && java -version'
+                bat 'echo "Maven Version:" && mvn --version'
+            }
+        }
+
         stage('Clean Workspace') {
             steps {
-                bat 'mvn clean || echo "Clean completed"'
-                bat 'if exist target rmdir /s /q target'
+                bat 'mvn clean -q'
             }
         }
 
@@ -19,15 +25,21 @@ pipeline {
             }
         }
 
-        stage('Build & Test') {
+        stage('Validate Project') {
             steps {
-                bat 'mvn clean compile -DskipTests'
+                bat 'mvn validate -q'
+            }
+        }
+
+        stage('Build & Compile') {
+            steps {
+                bat 'mvn compile -Dmaven.compiler.source=21 -Dmaven.compiler.target=21'
             }
         }
 
         stage('Run Tests') {
             steps {
-                bat 'mvn test'
+                bat 'mvn test -Dmaven.compiler.source=21 -Dmaven.compiler.target=21'
             }
             post {
                 always {
@@ -38,7 +50,7 @@ pipeline {
 
         stage('Package JAR') {
             steps {
-                bat 'mvn clean package -DskipTests'
+                bat 'mvn package -DskipTests -Dmaven.compiler.source=21 -Dmaven.compiler.target=21'
                 archiveArtifacts 'target/*.jar'
             }
         }
@@ -66,13 +78,13 @@ pipeline {
         success {
             echo '🎉 Pipeline SUCCESS! Application deployed.'
             bat 'docker ps'
-            bat 'curl http://localhost:9000/products || echo "Testing application..."'
+            bat 'timeout 10 && curl -f http://localhost:9000/products || echo "Application might be starting..."'
         }
         failure {
             echo '❌ Pipeline FAILED!'
         }
         always {
-            echo 'Pipeline completed.'
+            echo 'Pipeline execution completed.'
         }
     }
 }
