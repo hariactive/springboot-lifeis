@@ -6,22 +6,28 @@ pipeline {
     }
 
     stages {
+        stage('Clean Workspace') {
+            steps {
+                bat 'mvn clean || echo "Clean completed"'
+                bat 'if exist target rmdir /s /q target'
+            }
+        }
+
         stage('Checkout Code') {
             steps {
                 checkout scm
-                sh 'git branch'
             }
         }
 
         stage('Build & Test') {
             steps {
-                sh 'mvn clean compile'
+                bat 'mvn clean compile -DskipTests'
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh 'mvn test'
+                bat 'mvn test'
             }
             post {
                 always {
@@ -32,7 +38,7 @@ pipeline {
 
         stage('Package JAR') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                bat 'mvn clean package -DskipTests'
                 archiveArtifacts 'target/*.jar'
             }
         }
@@ -40,7 +46,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${env.DOCKER_IMAGE}:${env.BUILD_ID} ."
+                    bat "docker build -t ${env.DOCKER_IMAGE}:${env.BUILD_ID} ."
                 }
             }
         }
@@ -48,11 +54,9 @@ pipeline {
         stage('Deploy to Docker') {
             steps {
                 script {
-                    sh """
-                    docker stop springboot-lifeis || true
-                    docker rm springboot-lifeis || true
-                    docker run -d --name springboot-lifeis -p 9000:9000 ${env.DOCKER_IMAGE}:${env.BUILD_ID}
-                    """
+                    bat "docker stop springboot-lifeis || echo \"Container not running\""
+                    bat "docker rm springboot-lifeis || echo \"Container not found\""
+                    bat "docker run -d --name springboot-lifeis -p 9000:9000 ${env.DOCKER_IMAGE}:${env.BUILD_ID}"
                 }
             }
         }
@@ -61,8 +65,8 @@ pipeline {
     post {
         success {
             echo '🎉 Pipeline SUCCESS! Application deployed.'
-            sh 'docker ps'
-            sh 'curl -s http://localhost:9000/products || echo "App might be starting..."'
+            bat 'docker ps'
+            bat 'curl http://localhost:9000/products || echo "Testing application..."'
         }
         failure {
             echo '❌ Pipeline FAILED!'
