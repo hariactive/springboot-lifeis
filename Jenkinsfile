@@ -3,31 +3,24 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "springboot-lifeis"
+        JAVA_HOME = "C:\\Program Files\\Java\\jdk-21"
+        PATH = "${env.JAVA_HOME}\\bin;${env.PATH}"
     }
 
     stages {
-        stage('Debug Info') {
+        stage('Setup Environment') {
             steps {
-                bat 'echo "Java Version:" && java -version'
-                bat 'echo "Maven Version:" && mvn --version'
+                bat '''
+                echo JAVA_HOME=%JAVA_HOME%
+                java -version
+                mvn -version
+                '''
             }
         }
 
         stage('Clean Workspace') {
             steps {
                 bat 'mvn clean -q'
-            }
-        }
-
-        stage('Checkout Code') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Validate Project') {
-            steps {
-                bat 'mvn validate -q'
             }
         }
 
@@ -57,19 +50,17 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    bat "docker build -t ${env.DOCKER_IMAGE}:${env.BUILD_ID} ."
-                }
+                bat "docker build -t ${env.DOCKER_IMAGE}:${env.BUILD_ID} ."
             }
         }
 
         stage('Deploy to Docker') {
             steps {
-                script {
-                    bat "docker stop springboot-lifeis || echo \"Container not running\""
-                    bat "docker rm springboot-lifeis || echo \"Container not found\""
-                    bat "docker run -d --name springboot-lifeis -p 9000:9000 ${env.DOCKER_IMAGE}:${env.BUILD_ID}"
-                }
+                bat '''
+                docker stop springboot-lifeis || echo Container not running
+                docker rm springboot-lifeis || echo Container not found
+                docker run -d --name springboot-lifeis -p 9000:9000 ${DOCKER_IMAGE}:${BUILD_ID}
+                '''
             }
         }
     }
@@ -78,7 +69,10 @@ pipeline {
         success {
             echo '🎉 Pipeline SUCCESS! Application deployed.'
             bat 'docker ps'
-            bat 'timeout 10 && curl -f http://localhost:9000/products || echo "Application might be starting..."'
+            bat '''
+            timeout /T 10
+            curl http://localhost:9000/products
+            '''
         }
         failure {
             echo '❌ Pipeline FAILED!'
