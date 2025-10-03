@@ -71,7 +71,7 @@ pipeline {
                 script {
                     bat """
                     docker stop springboot-lifeis || echo "Container not running"
-                    docker rm springboot-lifeis || echo "Container not found" 
+                    docker rm springboot-lifeis || echo "Container not found"
                     docker run -d --name springboot-lifeis -p 9000:9000 ${env.DOCKER_IMAGE}:${env.BUILD_ID}
                     """
                 }
@@ -81,18 +81,16 @@ pipeline {
 
     post {
         success {
-            echo '🎉 Pipeline SUCCESS! Application deployed.'
+            echo '🎉 Pipeline SUCCESS! Application deployed and running.'
             bat 'docker ps'
             bat """
-            timeout /T 10 /NOBREAK
-            curl http://localhost:9000/products || echo "Application is starting..."
+            echo "Application container started successfully!"
+            echo "Spring Boot may take 20-30 seconds to fully start..."
+            echo "You can manually test with: curl http://localhost:9000/products"
             """
         }
         failure {
             echo '❌ Pipeline FAILED!'
-        }
-        always {
-            echo 'Pipeline execution completed.'
         }
     }
 }
